@@ -17,6 +17,10 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 
+
+
+
+
 const authFormSchema = (type: FormType) => {
   return z.object({
     name: type === "sign-up" ? z.string().min(3) : z.string().optional(),
@@ -52,7 +56,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
           uid: userCredentials.user.uid,
           name: name!,
           email,
-          password,
+        
         });
         if (!result?.success) {
           toast.error(result?.message);
