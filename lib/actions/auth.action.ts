@@ -5,17 +5,15 @@ import { cookies } from "next/headers";
 
 const ONE_WEEK = 60 * 60 * 24 * 7;
 
-// --- Types ---
+// --- Type Definitions ---
 type SignUpParams = {
   uid: string;
   name: string;
   email: string;
-  password: string;
 };
 
 type SignInParams = {
   email: string;
-  password: string;
   idToken: string;
 };
 
@@ -25,7 +23,7 @@ type User = {
   email: string;
 };
 
-// --- Sign Up ---
+// --- Sign Up Function ---
 export async function signUp(params: SignUpParams) {
   const { uid, name, email } = params;
 
@@ -45,17 +43,14 @@ export async function signUp(params: SignUpParams) {
       success: true,
       message: "Account created successfully. Please Sign in.",
     };
-  } catch (e: unknown) {
-    console.error("Error creating a user", e);
+  } catch (error: unknown) {
+    console.error("Error creating a user", error);
 
-    if (typeof e === "object" && e !== null && "code" in e) {
-      const error = e as { code: string };
-      if (error.code === "auth/email-already-exists") {
-        return {
-          success: false,
-          message: "This email is already in use.",
-        };
-      }
+    if (error instanceof Error && 'code' in error && error.code === "auth/email-already-exists") {
+      return {
+        success: false,
+        message: "This email is already in use.",
+      };
     }
 
     return {
@@ -65,7 +60,7 @@ export async function signUp(params: SignUpParams) {
   }
 }
 
-// --- Sign In ---
+// --- Sign In Function ---
 export async function signIn(params: SignInParams) {
   const { email, idToken } = params;
 
@@ -84,9 +79,8 @@ export async function signIn(params: SignInParams) {
       success: true,
       message: "Signed in successfully",
     };
-  } catch (e: unknown) {
-    console.error("Error signing in", e);
-
+  } catch (error) {
+    console.error("Error signing in", error);
     return {
       success: false,
       message: "Failed to log into an account",
@@ -94,7 +88,7 @@ export async function signIn(params: SignInParams) {
   }
 }
 
-// --- Set Cookie ---
+// --- Session Management ---
 export async function setSessionCookie(idToken: string) {
   const cookieStore = await cookies();
 
@@ -111,7 +105,7 @@ export async function setSessionCookie(idToken: string) {
   });
 }
 
-// --- Get Current User ---
+// --- User Management ---
 export async function getCurrentUser(): Promise<User | null> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session")?.value;
@@ -120,26 +114,22 @@ export async function getCurrentUser(): Promise<User | null> {
 
   try {
     const decodedClaims = await auth.verifySessionCookie(sessionCookie, true);
-
-    const userRecord = await db
-      .collection("users")
-      .doc(decodedClaims.uid)
-      .get();
+    const userRecord = await db.collection("users").doc(decodedClaims.uid).get();
 
     if (!userRecord.exists) return null;
 
     return {
-      ...userRecord.data(),
       id: userRecord.id,
-    } as User;
-  } catch (e: unknown) {
-    console.error("Error verifying session cookie", e);
+      name: userRecord.data()?.name || '',
+      email: userRecord.data()?.email || '',
+    };
+  } catch (error) {
+    console.error("Error verifying session cookie", error);
     return null;
   }
 }
 
-// --- Auth Check ---
-export async function isAuthenticated() {
+export async function isAuthenticated(): Promise<boolean> {
   const user = await getCurrentUser();
   return !!user;
 }
